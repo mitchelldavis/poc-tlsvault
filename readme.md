@@ -1,7 +1,5 @@
 # Vault TLS with Consul mTls
 
----
-
 ## The What
 
 While researching how to get AWS EKS ready for production, we decided on the following requirements:
@@ -19,13 +17,9 @@ So, we need TLS management on top of Consul Connect which produces another requi
 
 - Vault [PKI](https://www.vaultproject.io/docs/secrets/pki) will be the TLS authority for communicating with Vault outside of Consul Connect.  We can use [Cert-Manager](https://cert-manager.io/) to handle the certificate issuing and automate the process.
 
----
-
 ## The Why
 
 After scouring the internet for days, I was unable to find a walkthrough on how to use Hashicorp's Consul and Vault Helm charts to accomplish a setup with the requirements we had.  So, I wanted to make this available for anyone else who's requirements are similar.
-
----
 
 ## The How
 
