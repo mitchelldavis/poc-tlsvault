@@ -2,7 +2,7 @@
 
 ---
 
-##The What
+## The What
 
 While researching how to get AWS EKS ready for production, we decided on the following requirements:
 
@@ -21,23 +21,22 @@ So, we need TLS management on top of Consul Connect which produces another requi
 
 ---
 
-##The Why
+## The Why
 
 After scouring the internet for days, I was unable to find a walkthrough on how to use Hashicorp's Consul and Vault Helm charts to accomplish a setup with the requirements we had.  So, I wanted to make this available for anyone else who's requirements are similar.
 
 ---
 
-##The How
+## The How
 
----
 
-###Start Minikube
+### Start Minikube
 
 ```
 minikube start --memory 8192
 ```
 
-###Start Minikube Dashboard
+### Start Minikube Dashboard
 
 ```
 minikube dashboard
@@ -45,7 +44,7 @@ minikube dashboard
 
 This will bring up the kubernetes dashboard for minikube.
 
-###Prep the Cluster
+### Prep the Cluster
 
 We need to make sure that a Gossip Encryption key is created so that Consul can use it.
 
@@ -55,7 +54,7 @@ We need to make sure that a Gossip Encryption key is created so that Consul can 
 make prep
 ```
 
-###Deploy Consul
+### Deploy Consul
 
 ```
 make consul
@@ -69,7 +68,7 @@ kubectl exec pod/consul-server-0 -n consul -- /bin/sh -c \
     "export CONSUL_HTTP_TOKEN=$ACL_TOKEN && consul intention create cert-manager vault"
 ```
 
-###Deploy Vault
+### Deploy Vault
 
 ```
 cd vault
@@ -109,7 +108,7 @@ kubectl create secret generic vault-ca -n vault --dry-run --from-literal=vault-c
 cd ..
 ```
 
-###Deploy Cert-Manager
+### Deploy Cert-Manager
 
 ```
 cd cert-manager
@@ -127,7 +126,7 @@ cd ..
 
 At this point, the Vault certificate should be ready to go. So we need to upgrade the vault helm chart with new values.
 
-###Upgrade Vault
+### Upgrade Vault
 
 ```
 cd vault
@@ -149,7 +148,7 @@ cd ..
 
 At this point, Vault should be ready to go with Mtls through Consul Connect and TLS over it's http endpoint. You can test it by deploying the Web-Test application.
 
-###Deploy Web-Test
+### Deploy Web-Test
 
 ```
 cd web-test
