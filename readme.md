@@ -7,17 +7,17 @@
 While researching how to get AWS EKS ready for production, we decided on the following requirements:
 
 - We'll use Vault for Secret's Management.  Not only will it handle secrets securely, it can provide dynamic secrets for things such as other cloud providers.  This allows us to support cloud agnostic deployments.
-- We'll use Consul Connect for mTls and cluster to cluster communication.  We need to isolate Vault in it's own EKS cluster, and Consul's [Mesh Gateways]() allow us to have completely isolated clusters and still maintain the service mesh.
+- We'll use Consul Connect for mTls and cluster to cluster communication.  We need to isolate Vault in it's own EKS cluster, and Consul's [Mesh Gateways](https://www.consul.io/docs/connect/mesh_gateway) allow us to have completely isolated clusters and still maintain the service mesh.
 
-One of the main Production ready requirements for Hashicorp [Vault]() is to make sure you use End-to-end TLS encryption for everything communicating with Vault.  So, while researching [Consul]() and Vault in Kubernetes, you learn about [Connect]() which has mTls and is super secure.  Cool, so, instead of dealing with certificates in Kubernetes, can we just use Consul Connect to manage our end-to-end encryption?
+One of the main Production ready requirements for Hashicorp [Vault](https://www.vaultproject.io/) is to make sure you use End-to-end TLS encryption for everything communicating with Vault.  So, while researching [Consul](https://consul.io) and Vault in Kubernetes, you learn about [Connect](https://www.consul.io/docs/connect) which has mTls and is super secure.  Cool, so, instead of dealing with certificates in Kubernetes, can we just use Consul Connect to manage our end-to-end encryption?
 
 It turns out it's not that easy.
 
-We can use Connect for service to service communication but anything that happens in [Init Containers]() cannot use Connect.  The Connect sidecar isn't ready until after the Init Containers are done.  Wait, doesn't [Vault's Secrets Injector]() run in Init stages?  Well, yes and no.  It can inject secrets in the init stage, but also runs a sidecar that keeps secrets up to date.  However, if the Init Container can't communicate with Vault, Pods that need secrets injected won't start.  This causes Vault's quasi-default Helm deployment to need TLS certificate managment because the Secrets Injector communicates with vault before Connect is available in Pods.
+We can use Connect for service to service communication but anything that happens in [Init Containers](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) cannot use Connect.  The Connect sidecar isn't ready until after the Init Containers are done.  Wait, doesn't [Vault's Secrets Injector](https://www.vaultproject.io/docs/platform/k8s/injector) run in Init stages?  Well, yes and no.  It can inject secrets in the init stage, but also runs a sidecar that keeps secrets up to date.  However, if the Init Container can't communicate with Vault, Pods that need secrets injected won't start.  This causes Vault's quasi-default Helm deployment to need TLS certificate managment because the Secrets Injector communicates with vault before Connect is available in Pods.
 
 So, we need TLS management on top of Consul Connect which produces another requirement.
 
-- Vault [PKI]() will be the TLS authority for communicating with Vault outside of Consul Connect.  We can use [Cert-Manager]() to handle the certificate issuing and automate the process.
+- Vault [PKI](https://www.vaultproject.io/docs/secrets/pki) will be the TLS authority for communicating with Vault outside of Consul Connect.  We can use [Cert-Manager](https://cert-manager.io/) to handle the certificate issuing and automate the process.
 
 ---
 
@@ -61,9 +61,7 @@ make prep
 make consul
 ```
 
-We need to make sure that Consul Connect allows connections to Vault from Cert-Manager.
-The following extracts the bootstrap ACL token that is needed to communicate with Consul.  
-(This should only be used for bootstrap activities like this.)  Then it creates the needed connect intention.
+We need to make sure that Consul Connect allows connections to Vault from Cert-Manager. The following extracts the bootstrap ACL token that is needed to communicate with Consul.  (This should only be used for bootstrap activities like this.)  Then it creates the needed connect intention.
 
 ```
 ACL_TOKEN=$(kubectl get secret/consul-bootstrap-acl-token -n consul -o json | jq -r '.data.token' | base64 -d)
@@ -78,16 +76,11 @@ cd vault
 make install VALUES_FILE=vault-values-init.yaml
 ```
 
-Wait for the events on the vault-0 pod to show that 
-it can't go any further because it needs to be initialized.
-It should say something like `Seal Type shamir Initialized 
-false Sealed true` in the pod events.
+Wait for the events on the vault-0 pod to show that it can't go any further because it needs to be initialized. It should say something like `Seal Type shamir Initialized false Sealed true` in the pod events.
 
-The `vault_init` action will only need to be ran once, or as long as 
-the `data-vault-0` Persistent Volume Claim exists between vault installs.
+The `vault_init` action will only need to be ran once, or as long as the `data-vault-0` Persistent Volume Claim exists between vault installs.
 
-The `vault_unseal` will need to be ran every time we uninstall then reinstall
-vault.
+The `vault_unseal` will need to be ran every time we uninstall then reinstall vault.
 
 ```
 make vault_init
@@ -108,10 +101,7 @@ make terraform_apply
 make vault_setsecret
 ```
 
-After we are done with this stage of vault configuration, we create a secret that can be accessed within
-the `default` namespace and has the vault ca.  Once it's available all services within the `default`
-namespace will be able to use it to securely communicate with vault.  When we're done
-exit from the directory.
+After we are done with this stage of vault configuration, we create a secret that can be accessed within the `default` namespace and has the vault ca.  Once it's available all services within the `default` namespace will be able to use it to securely communicate with vault.  When we're done exit from the directory.
 
 ```
 export VAULT_CA=$(curl http://127.0.0.1:8200/v1/pki_vault/ca/pem)
@@ -126,8 +116,7 @@ cd cert-manager
 make install
 ```
 
-The ClusterIssuer needs the Cert-Manager service account token in order to authenticate with vault.  
-However, the secret's name is random so we need to search for it then we apply the ClusterIssuer.
+The ClusterIssuer needs the Cert-Manager service account token in order to authenticate with vault. However, the secret's name is random so we need to search for it then we apply the ClusterIssuer.
 
 ```
 export SECRET=$(kubectl get sa/cert-manager -n cert-manager -o json | jq -r '.secrets[0].name')
@@ -136,8 +125,7 @@ kubectl apply -f vault_cert.yaml
 cd ..
 ```
 
-At this point, the Vault certificate should be ready to go.  
-So we need to upgrade the vault helm chart with new values.
+At this point, the Vault certificate should be ready to go. So we need to upgrade the vault helm chart with new values.
 
 ###Upgrade Vault
 
@@ -159,8 +147,7 @@ make vault_unseal
 cd ..
 ```
 
-At this point, Vault should be ready to go with Mtls through Consul Connect and TLS over it's http endpoint.  
-You can test it by deploying the Web-Test application.
+At this point, Vault should be ready to go with Mtls through Consul Connect and TLS over it's http endpoint. You can test it by deploying the Web-Test application.
 
 ###Deploy Web-Test
 
