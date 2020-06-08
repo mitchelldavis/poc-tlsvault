@@ -1,0 +1,4 @@
+installCRDs: true
+podAnnotations:
+  consul.hashicorp.com/connect-inject: "true"
+  consul.hashicorp.com/connect-service-upstreams: vault:8080

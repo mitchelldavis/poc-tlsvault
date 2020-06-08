@@ -1,0 +1,43 @@
+---
+# This is the initial configuration of vault
+# before a TLS certificate is generated for it.
+global:
+  tlsDisable: 1
+injector:
+  authPath: "auth/kube-uswest2-hashicorp"
+server:
+  annotations: |
+    consul.hashicorp.com/connect-inject: "true"
+    consul.hashicorp.com/connect-service-port: "8080"
+  standalone:
+    enabled: true
+    config: |
+      ui=true
+      listener "tcp" {
+        address = "0.0.0.0:8200"
+        cluster_address = "0.0.0.0:8201"
+        tls_disable = true
+      }
+
+      listener "tcp" {
+        tls_disable = true
+        address = "127.0.0.1:8080"
+      }
+
+      storage "file" {
+        path = "/vault/data"
+      }
+
+  #These are certificate specific items
+  extraEnvironmentVars:
+    VAULT_ADDR: http://127.0.0.1:8080
+  #---
+
+  service:
+    enabled: true
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
